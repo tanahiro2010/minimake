@@ -499,6 +499,57 @@ def parallel_build(config: dict, target: str, max_workers: int = None) -> bool:
     return True
 
 
+def create_clean_env() -> dict[str, str]:
+    # TODO: クリーンな環境変数を作成してください
+    # ヒント:
+    # - PATH: 最小限のパス（/usr/bin:/bin）
+    # - HOME: 存在しないパス（/nonexistent）
+    # - LANG, LC_ALL: C.UTF-8
+    # - TZ: UTC
+    # - SOURCE_DATE_EPOCH: 0（タイムスタンプを固定）
+    pass
+
+
+def normalize_build_command(command: str, source_dir: str) -> str:
+    if "gcc" in command or "clang" in command:
+        prefix_map = f"-ffile-prefix-map={source_dir}=."
+        command = command.replace("gcc ", f"gcc {prefix_map} ")
+        command = command.replace("clang ", f"clang {prefix_map} ")
+    return command
+
+
+def reproducible_build(config: dict, target: str) -> bool:
+    targets = config.get("targets", {})
+
+    try:
+        order = resolve_build_order(config, target)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return False
+
+    env = create_clean_env()
+    if env is None:
+        print("Error: create_clean_env not implemented", file=sys.stderr)
+        return False
+
+    for t in order:
+        t_config = targets[t]
+        command = t_config.get("command", "")
+
+        command = normalize_build_command(command, os.getcwd())
+
+        print(f"Building {t} (reproducible mode)...")
+        print(f"  $ {command}")
+
+        result = subprocess.run(command, shell=True, env=env, capture_output=True)
+
+        if result.returncode != 0:
+            print(f"Error: {result.stderr.decode()}", file=sys.stderr)
+            return False
+
+    return True
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: minimake <command> [args...]", file=sys.stderr)
@@ -546,6 +597,7 @@ def main():
     build_file = "build.json"
     use_cache = False
     parallel = False
+    reproducible = False
     max_workers = None
 
     i = 1
@@ -559,6 +611,9 @@ def main():
         elif sys.argv[i] == "--parallel":
             parallel = True
             i += 1
+        elif sys.argv[i] == "--reproducible":
+            reproducible = True
+            i += 1
         elif sys.argv[i] == "-j" and i + 1 < len(sys.argv):
             parallel = True
             max_workers = int(sys.argv[i + 1])
@@ -571,7 +626,10 @@ def main():
     config = auto_resolve_inputs(config)
 
     for target in targets:
-        if parallel:
+        if reproducible:
+            if not reproducible_build(config, target):
+                sys.exit(1)
+        elif parallel:
             if not parallel_build(config, target, max_workers):
                 sys.exit(1)
         elif use_cache:

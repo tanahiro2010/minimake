@@ -1,0 +1,23 @@
+name: Chapter 10 - Reproducible Build
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test create_clean_env
+        run: python tests/test_create_clean_env.py
+
+      - name: Test reproducible build
+        working-directory: project
+        run: bash ../tests/test_reproducible_build.sh

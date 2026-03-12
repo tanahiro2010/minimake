@@ -1,13 +1,17 @@
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
 CACHE_DIR = Path(".minimake-cache")
+print_lock = threading.Lock()
 
 
 def load_build_file(path: str) -> dict:
@@ -406,6 +410,92 @@ def build_with_deps(config: dict, target: str) -> bool:
     return True
 
 
+def compute_build_levels(config: dict, target: str) -> dict[str, int]:
+    targets = config.get("targets", {})
+    levels = {}
+
+    def get_level(t: str) -> int:
+        if t in levels:
+            return levels[t]
+
+        deps = targets[t].get("deps", [])
+        if not deps:
+            levels[t] = 0
+        else:
+            levels[t] = max(get_level(dep) for dep in deps) + 1
+
+        return levels[t]
+
+    order = resolve_build_order(config, target)
+    for t in order:
+        get_level(t)
+
+    return levels
+
+
+def group_by_level(levels: dict[str, int]) -> list[list[str]]:
+    # TODO: レベルごとにターゲットをグループ化してください
+    # ヒント:
+    # 入力: {"a": 0, "b": 0, "c": 1, "d": 2}
+    # 出力: [["a", "b"], ["c"], ["d"]]
+    if not levels:
+        return []
+    pass
+
+
+def safe_print(message: str):
+    with print_lock:
+        print(message)
+
+
+def build_target_simple(config: dict, target: str) -> tuple[str, bool]:
+    targets = config.get("targets", {})
+    target_config = targets[target]
+    command = target_config.get("command")
+
+    if not command:
+        return target, False
+
+    safe_print(f"[{threading.current_thread().name}] Building {target}...")
+
+    result = subprocess.run(command, shell=True, capture_output=True)
+
+    if result.returncode != 0:
+        safe_print(f"Error building {target}: {result.stderr.decode()}")
+        return target, False
+
+    safe_print(f"[{threading.current_thread().name}] Completed {target}")
+    return target, True
+
+
+def parallel_build(config: dict, target: str, max_workers: int = None) -> bool:
+    if max_workers is None:
+        max_workers = os.cpu_count() or 4
+
+    levels = compute_build_levels(config, target)
+    groups = group_by_level(levels)
+
+    print(f"Build levels: {len(groups)}, Max parallelism: {max_workers}")
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for level, targets_at_level in enumerate(groups):
+            print(f"\n=== Level {level}: {targets_at_level} ===")
+
+            futures = {
+                executor.submit(build_target_simple, config, t): t
+                for t in targets_at_level
+            }
+
+            for future in as_completed(futures):
+                target_name, success = future.result()
+                if not success:
+                    print(f"Build failed at level {level}")
+                    return False
+
+    print("\nBuild completed successfully!")
+    return True
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: minimake <command> [args...]", file=sys.stderr)
@@ -452,6 +542,8 @@ def main():
     targets = []
     build_file = "build.json"
     use_cache = False
+    parallel = False
+    max_workers = None
 
     i = 1
     while i < len(sys.argv):
@@ -461,6 +553,13 @@ def main():
         elif sys.argv[i] == "--cache":
             use_cache = True
             i += 1
+        elif sys.argv[i] == "--parallel":
+            parallel = True
+            i += 1
+        elif sys.argv[i] == "-j" and i + 1 < len(sys.argv):
+            parallel = True
+            max_workers = int(sys.argv[i + 1])
+            i += 2
         else:
             targets.append(sys.argv[i])
             i += 1
@@ -469,7 +568,10 @@ def main():
     config = auto_resolve_inputs(config)
 
     for target in targets:
-        if use_cache:
+        if parallel:
+            if not parallel_build(config, target, max_workers):
+                sys.exit(1)
+        elif use_cache:
             if not build_all_with_cache(config, target):
                 sys.exit(1)
         else:

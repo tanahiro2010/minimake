@@ -13,12 +13,22 @@ def load_build_file(path: str) -> dict:
 
 
 def get_tool_version(tool: str) -> str | None:
-    # TODO: ツールのバージョンを取得してください
-    # ヒント:
-    # - gcc: `gcc --version` の出力から抽出
-    # - python: `python3 --version` の出力から抽出
-    # - 正規表現 r'(\d+\.\d+\.\d+)' でバージョン番号を抽出できます
-    pass
+    try:
+        if tool == "gcc":
+            result = subprocess.run(["gcc", "--version"], capture_output=True, text=True)
+            match = re.search(r"(\d+\.\d+\.\d+)", result.stdout)
+            if match:
+                return match.group(1)
+        elif tool == "python":
+            result = subprocess.run(
+                ["python3", "--version"], capture_output=True, text=True
+            )
+            match = re.search(r"(\d+\.\d+\.\d+)", result.stdout)
+            if match:
+                return match.group(1)
+    except FileNotFoundError:
+        return None
+    return None
 
 
 def get_tool_path(tool: str) -> str | None:
@@ -33,12 +43,19 @@ def parse_version(v: str) -> tuple:
 
 
 def check_version_constraint(actual: str, constraint: str) -> bool:
-    # TODO: バージョン制約を満たしているかチェックしてください
-    # ヒント:
-    # - ">=X.Y.Z": actual が X.Y.Z 以上
-    # - "==X.Y.Z": actual が X.Y.Z と一致
-    # - parse_version() でタプルに変換すると比較しやすくなります
-    pass
+    actual_tuple = parse_version(actual)
+
+    if constraint.startswith(">="):
+        required = parse_version(constraint[2:])
+        return actual_tuple >= required
+    elif constraint.startswith("<="):
+        required = parse_version(constraint[2:])
+        return actual_tuple <= required
+    elif constraint.startswith("=="):
+        required = parse_version(constraint[2:])
+        return actual_tuple == required
+    else:
+        return actual == constraint
 
 
 def compute_file_hash(path: str) -> str:

@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -7,6 +8,51 @@ from pathlib import Path
 def load_build_file(path: str) -> dict:
     with open(path) as f:
         return json.load(f)
+
+
+def parse_includes(file_path: str) -> list[str]:
+    content = Path(file_path).read_text()
+
+    # TODO: #include "..." の形式を抽出してください
+    # ヒント: re.findall(r'#include\s+"([^"]+)"', content)
+    pass
+
+
+def collect_all_includes(file_path: str, base_dir: str = ".") -> set[str]:
+    collected = set()
+    visited = set()
+
+    def visit(path: str):
+        # TODO: 再帰的に #include を収集してください
+        # ヒント:
+        # 1. 訪問済みならスキップ
+        # 2. parse_includes でインクルードを取得
+        # 3. 各インクルードに対して再帰的に visit を呼ぶ
+        pass
+
+    visit(file_path)
+    return collected
+
+
+def auto_resolve_inputs(config: dict, base_dir: str = ".") -> dict:
+    targets = config.get("targets", {})
+
+    for target_name, target_config in targets.items():
+        if "inputs" in target_config:
+            continue
+
+        command = target_config.get("command", "")
+        c_files = re.findall(r'\b(\w+\.c)\b', command)
+
+        all_inputs = set(c_files)
+
+        for c_file in c_files:
+            includes = collect_all_includes(c_file, base_dir)
+            all_inputs.update(includes)
+
+        target_config["inputs"] = list(all_inputs)
+
+    return config
 
 
 def needs_rebuild(config: dict, target: str) -> bool:
@@ -126,6 +172,7 @@ def main():
             i += 1
 
     config = load_build_file(build_file)
+    config = auto_resolve_inputs(config)
 
     for target in targets:
         if not build_with_deps(config, target):

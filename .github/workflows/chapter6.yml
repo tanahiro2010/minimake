@@ -1,0 +1,27 @@
+name: Chapter 6 - Auto Dependency Resolution
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test parse_includes
+        run: python tests/test_parse_includes.py
+
+      - name: Test collect_all_includes
+        working-directory: project
+        run: python ../tests/test_collect_all_includes.py
+
+      - name: Test auto_resolve_inputs
+        working-directory: project
+        run: bash ../tests/test_auto_resolve.sh

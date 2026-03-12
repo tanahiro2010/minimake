@@ -500,14 +500,15 @@ def parallel_build(config: dict, target: str, max_workers: int = None) -> bool:
 
 
 def create_clean_env() -> dict[str, str]:
-    # TODO: クリーンな環境変数を作成してください
-    # ヒント:
-    # - PATH: 最小限のパス（/usr/bin:/bin）
-    # - HOME: 存在しないパス（/nonexistent）
-    # - LANG, LC_ALL: C.UTF-8
-    # - TZ: UTC
-    # - SOURCE_DATE_EPOCH: 0（タイムスタンプを固定）
-    pass
+    return {
+        "PATH": "/usr/bin:/bin",
+        "HOME": "/nonexistent",
+        "USER": "nobody",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "TZ": "UTC",
+        "SOURCE_DATE_EPOCH": "0",
+    }
 
 
 def normalize_build_command(command: str, source_dir: str) -> str:

@@ -1,6 +1,8 @@
-import os
+import sys
 import time
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from minimake import load_build_file, needs_rebuild
 
 config = load_build_file("build.json")
@@ -19,4 +21,4 @@ Path("hello.o").touch()
 assert not needs_rebuild(config, "hello.o"), "Should not need rebuild when target is newer"
 
 Path("hello.o").unlink(missing_ok=True)
-print("✓ needs_rebuild works correctly")
+print("OK: needs_rebuild works correctly")

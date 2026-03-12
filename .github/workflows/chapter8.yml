@@ -1,0 +1,24 @@
+name: Chapter 8 - Build Cache
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}/src
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test compute_cache_key
+        working-directory: project
+        run: python ../tests/test_compute_cache_key.py
+
+      - name: Test cache
+        working-directory: project
+        run: bash ../tests/test_cache.sh

@@ -1,10 +1,13 @@
 import hashlib
 import json
 import re
+import shutil
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+
+CACHE_DIR = Path(".minimake-cache")
 
 
 def load_build_file(path: str) -> dict:
@@ -124,6 +127,124 @@ def verify_lockfile(lockfile: dict) -> list[str]:
                 errors.append(f"{tool}: binary hash mismatch")
 
     return errors
+
+
+def compute_cache_key(config: dict, target: str, dep_keys: dict[str, str]) -> str:
+    # TODO: ターゲットのキャッシュキーを計算してください
+    # ヒント:
+    # 1. ビルドコマンドをハッシュに含める
+    # 2. 各入力ファイルの内容（ファイル名とハッシュ）をハッシュに含める
+    # 3. 依存ターゲットのキャッシュキーをハッシュに含める
+    # hasher.update(string.encode()) でハッシュに追加できます
+    targets = config.get("targets", {})
+    target_config = targets[target]
+    hasher = hashlib.sha256()
+    pass
+
+
+def get_cache_path(cache_key: str) -> Path:
+    return CACHE_DIR / cache_key
+
+
+def save_to_cache(cache_key: str, target: str):
+    cache_path = get_cache_path(cache_key)
+    cache_path.mkdir(parents=True, exist_ok=True)
+
+    target_path = Path(target)
+    if target_path.exists():
+        shutil.copy2(target_path, cache_path / target_path.name)
+
+    metadata = {"target": target, "created_at": datetime.now().isoformat()}
+    with open(cache_path / "metadata.json", "w") as f:
+        json.dump(metadata, f)
+
+
+def restore_from_cache(cache_key: str, target: str) -> bool:
+    cache_path = get_cache_path(cache_key)
+
+    if not cache_path.exists():
+        return False
+
+    cached_file = cache_path / Path(target).name
+    if not cached_file.exists():
+        return False
+
+    shutil.copy2(cached_file, target)
+    return True
+
+
+def build_with_cache(config: dict, target: str, dep_keys: dict[str, str]) -> tuple[bool, str]:
+    targets = config.get("targets", {})
+    target_config = targets[target]
+
+    cache_key = compute_cache_key(config, target, dep_keys)
+
+    if cache_key and restore_from_cache(cache_key, target):
+        print(f"Cache hit: {target} ({cache_key[:8]}...)")
+        return True, cache_key
+
+    command = target_config.get("command")
+    if not command:
+        print(f"Error: No command for target '{target}'", file=sys.stderr)
+        return False, ""
+
+    print(f"Building {target}..." + (f" ({cache_key[:8]}...)" if cache_key else ""))
+    print(f"  $ {command}")
+
+    result = subprocess.run(command, shell=True)
+
+    if result.returncode != 0:
+        print(f"Error: Build failed for '{target}'", file=sys.stderr)
+        return False, ""
+
+    if cache_key:
+        save_to_cache(cache_key, target)
+
+    return True, cache_key or ""
+
+
+def build_all_with_cache(config: dict, target: str) -> bool:
+    try:
+        order = resolve_build_order(config, target)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return False
+
+    print(f"Build order: {' -> '.join(order)}")
+
+    dep_keys = {}
+
+    for t in order:
+        success, cache_key = build_with_cache(config, t, dep_keys)
+        if not success:
+            return False
+        dep_keys[t] = cache_key
+
+    return True
+
+
+def cache_stats():
+    if not CACHE_DIR.exists():
+        print("No cache found")
+        return
+
+    total_size = 0
+    entry_count = 0
+
+    for entry in CACHE_DIR.iterdir():
+        if entry.is_dir():
+            entry_count += 1
+            for file in entry.iterdir():
+                total_size += file.stat().st_size
+
+    print(f"Cache entries: {entry_count}")
+    print(f"Total size: {total_size / 1024 / 1024:.2f} MB")
+
+
+def cache_clean():
+    if CACHE_DIR.exists():
+        shutil.rmtree(CACHE_DIR)
+        print("Cache cleaned")
 
 
 def parse_includes(file_path: str) -> list[str]:
@@ -279,10 +400,18 @@ def build_with_deps(config: dict, target: str) -> bool:
 def main():
     if len(sys.argv) < 2:
         print("Usage: minimake <command> [args...]", file=sys.stderr)
-        print("Commands: <target>, lock, verify", file=sys.stderr)
+        print("Commands: <target>, lock, verify, cache-stats, cache-clean", file=sys.stderr)
         sys.exit(1)
 
     command = sys.argv[1]
+
+    if command == "cache-stats":
+        cache_stats()
+        return
+
+    if command == "cache-clean":
+        cache_clean()
+        return
 
     if command == "lock":
         build_file = "build.json"
@@ -313,12 +442,16 @@ def main():
 
     targets = []
     build_file = "build.json"
+    use_cache = False
 
     i = 1
     while i < len(sys.argv):
         if sys.argv[i] == "--file" and i + 1 < len(sys.argv):
             build_file = sys.argv[i + 1]
             i += 2
+        elif sys.argv[i] == "--cache":
+            use_cache = True
+            i += 1
         else:
             targets.append(sys.argv[i])
             i += 1
@@ -327,8 +460,12 @@ def main():
     config = auto_resolve_inputs(config)
 
     for target in targets:
-        if not build_with_deps(config, target):
-            sys.exit(1)
+        if use_cache:
+            if not build_all_with_cache(config, target):
+                sys.exit(1)
+        else:
+            if not build_with_deps(config, target):
+                sys.exit(1)
 
 
 if __name__ == "__main__":

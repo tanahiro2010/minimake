@@ -15,19 +15,30 @@ def parse_includes(file_path: str) -> list[str]:
 
     # TODO: #include "..." の形式を抽出してください
     # ヒント: re.findall(r'#include\s+"([^"]+)"', content)
-    pass
+    return re.findall(r'#include\s+"([^"]+)"', content)
 
 
 def collect_all_includes(file_path: str, base_dir: str = ".") -> set[str]:
     collected = set()
     visited = set()
 
-    def visit(path: str):
+    def visit(path: str) -> None:
         # TODO: 再帰的に #include を収集してください
         # ヒント:
         # 1. 訪問済みならスキップ
         # 2. parse_includes でインクルードを取得
         # 3. 各インクルードに対して再帰的に visit を呼ぶ
+        if path in visited:
+            return
+
+        visited.add(path)
+        files = parse_includes(path)
+        for f in files:
+            print(f"Found include: {f} in {path}")
+            include_path = Path(base_dir) / f
+            if include_path.exists():
+                collected.add(str(include_path))
+                visit(str(include_path))
         pass
 
     visit(file_path)

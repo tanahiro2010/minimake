@@ -3,3 +3,8 @@ __pycache__
 # Build artifacts
 *.o
 hello
+
+
+.venv
+.DS_Store
+**/.DS_Store

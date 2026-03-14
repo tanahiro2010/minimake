@@ -1,7 +1,6 @@
-import os
 import time
 from pathlib import Path
-from minimake import load_build_file, needs_rebuild
+from project.minimake import load_build_file, needs_rebuild
 
 config = load_build_file("build.json")
 

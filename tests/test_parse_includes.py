@@ -3,7 +3,7 @@ import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from minimake import parse_includes
+from project.minimake import parse_includes
 
 with tempfile.NamedTemporaryFile(mode="w", suffix=".c", delete=False) as f:
     f.write('#include <stdio.h>\n')

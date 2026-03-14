@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from minimake import collect_all_includes
+from project.minimake import collect_all_includes
 
 import os
 os.chdir(Path(__file__).parent.parent / "project")

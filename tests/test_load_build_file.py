@@ -1,4 +1,4 @@
-from minimake import load_build_file
+from project.minimake import load_build_file
 
 config = load_build_file("build.json")
 assert config is not None, "load_build_file returned None"

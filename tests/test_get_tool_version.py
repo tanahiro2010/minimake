@@ -2,7 +2,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-from minimake import get_tool_version
+from project.minimake import get_tool_version
 
 gcc_version = get_tool_version("gcc")
 assert gcc_version is not None, "gcc version should not be None"

@@ -18,14 +18,26 @@ def needs_rebuild(config: dict, target: str) -> bool:
     if not target_path.exists():
         return True
 
-    target_mtime = target_path.stat().st_mtime
+    target_mtime = target_path.stat().st_mtime # ターゲットファイルの最終更新時刻
 
     # TODO: inputs と deps の両方をチェックしてください
     # ヒント:
     # - inputs: target_config.get("inputs", [])
     # - deps: target_config.get("deps", [])
     # - ファイルの mtime が target_mtime より大きければ再ビルドが必要
-    pass
+    for input_f in target_config.get("inputs", []):
+        input_path = Path(input_f)
+        st_time = input_path.stat().st_mtime # 入力ファイルの最終更新時刻
+        if not input_path.exists() or st_time > target_mtime: # もし入力ファイルが存在しないか、入力ファイルの方が新しい場合
+            return True # 再ビルドが必要
+
+    for dep in target_config.get("deps", []):
+        dep_path = Path(dep)
+        st_time = dep_path.stat().st_mtime # 依存ファイルの最終更新時刻
+        if not dep_path.exists() or st_time > target_mtime: # もし依存ファイルが存在しないか、依存ファイルの方が新しい場合
+            return True # 再ビルドが必要
+
+    return False
 
 
 def build_target(config: dict, target: str) -> bool:
@@ -97,7 +109,9 @@ def build_with_deps(config: dict, target: str) -> bool:
     print(f"Build order: {' -> '.join(order)}")
 
     for t in order:
-        if not build_target(config, t):
+        is_build = build_target(config, t)
+        print(f"Built {t}: {is_build}")
+        if not is_build:
             return False
 
     return True
@@ -121,6 +135,7 @@ def main():
             i += 1
 
     config = load_build_file(build_file)
+    print("config: ", json.dumps(config, indent=2))
 
     for target in targets:
         if not build_with_deps(config, target):

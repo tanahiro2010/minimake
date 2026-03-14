@@ -10,5 +10,10 @@
       "inputs": ["hello.o"],
       "command": "gcc -o hello hello.o"
     }
+  },
+  "tools": {
+    "gcc": {
+      "version": ">=11.0.0"
+    }
   }
 }

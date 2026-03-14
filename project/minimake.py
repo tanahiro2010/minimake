@@ -18,7 +18,17 @@ def get_tool_version(tool: str) -> str | None:
     # - gcc: `gcc --version` の出力から抽出
     # - python: `python3 --version` の出力から抽出
     # - 正規表現 r'(\d+\.\d+\.\d+)' でバージョン番号を抽出できます
-    pass
+
+    tool_version_result = subprocess.run(
+        [tool, "--version"], capture_output=True, text=True
+    )
+    if tool_version_result.returncode != 0:
+        return None
+
+    version_match = re.search(r"(\d+\.\d+\.\d+)", tool_version_result.stdout)
+    if version_match:
+        return version_match.group(1)
+    return None
 
 
 def get_tool_path(tool: str) -> str | None:
@@ -38,6 +48,15 @@ def check_version_constraint(actual: str, constraint: str) -> bool:
     # - ">=X.Y.Z": actual が X.Y.Z 以上
     # - "==X.Y.Z": actual が X.Y.Z と一致
     # - parse_version() でタプルに変換すると比較しやすくなります
+
+    if constraint.startswith(">="):
+        required_version = parse_version(constraint[2:])
+        return parse_version(actual) >= required_version
+    elif constraint.startswith("=="):
+        required_version = parse_version(constraint[2:])
+        return parse_version(actual) == required_version
+    else:
+        raise ValueError(f"Unsupported version constraint: {constraint}")
     pass
 
 

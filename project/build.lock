@@ -1,0 +1,10 @@
+{
+  "tools": {
+    "gcc": {
+      "version": "17.0.0",
+      "path": "/usr/bin/gcc",
+      "hash": "sha256:3e7d30871a9740446f33a907b14d28f10ebe6d4e1c146a4c0788308f573a6609"
+    }
+  },
+  "generated_at": "2026-03-14T12:48:36.751520"
+}

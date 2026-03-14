@@ -1,4 +1,4 @@
-from minimake import resolve_build_order
+from project.minimake import resolve_build_order
 
 config = {
     "targets": {

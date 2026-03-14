@@ -1,5 +1,5 @@
 import os
-from minimake import load_build_file, build_target
+from project.minimake import load_build_file, build_target
 
 config = load_build_file("build.json")
 

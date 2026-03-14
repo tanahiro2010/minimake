@@ -1,4 +1,4 @@
-from minimake import load_build_file, resolve_build_order
+from project.minimake import load_build_file, resolve_build_order
 
 config = load_build_file("build.json")
 

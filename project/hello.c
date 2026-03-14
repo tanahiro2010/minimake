@@ -2,7 +2,7 @@
 #include "greet.h"
 
 int main(void) {
+    // test
     printf("Hello, minimake!\n");
-    greet("Alice");
     return 0;
 }

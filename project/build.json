@@ -1,7 +1,7 @@
 {
   "targets": {
     "hello.o": {
-      "command": "gcc -c -o hello.o hello.c"
+      "command": "gcc -c -o hello.o project/hello.c"
     },
     "hello": {
       "command": "gcc -o hello hello.o"
